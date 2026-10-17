@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multilingual-intents"
+version = "0.1.0"
+description = "One intent-classification task (MASSIVE, English and Russian) solved three ways: TF-IDF + logistic regression, a fine-tuned transformer, and an LLM."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "datasets>=4.0",
+    "scikit-learn>=1.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.12"]
+
+[tool.setuptools]
+packages = ["intents"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
