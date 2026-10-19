@@ -9,11 +9,12 @@ Run from the project root:
 
 import argparse
 
-from sklearn.pipeline import Pipeline, make_pipeline
-from sklearn.linear_model import LogisticRegression
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import accuracy_score
 from sklearn import dummy
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.pipeline import Pipeline, make_pipeline
+
 from intents.data import LANGUAGES, load_split
 
 

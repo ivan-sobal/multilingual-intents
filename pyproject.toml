@@ -23,3 +23,6 @@ packages = ["intents"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff.lint]
+extend-select = ["I"]  # sorted imports, the same at home and in CI

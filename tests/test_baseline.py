@@ -1,6 +1,6 @@
 """Tests for the baseline. Run them from the project root with `pytest`."""
 
-from intents.baseline import build_pipeline, evaluate, build_most_frequent
+from intents.baseline import build_most_frequent, build_pipeline, evaluate
 
 # A tiny made-up dataset: two intents, three phrases each. No downloads, runs in a second.
 TEXTS = [
