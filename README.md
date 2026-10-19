@@ -37,7 +37,7 @@ Accuracy; empty cells are not measured yet.
 
 | Method | en, validation | ru, validation | en, test | ru, test |
 |---|---|---|---|---|
-| Always the most frequent intent | | | | |
+| Always the most frequent intent | 0.0644 | 0.0644 | | |
 | TF-IDF + logistic regression | 0.8057 | 0.7614 | | |
 | Fine-tuned transformer | | | | |
 | LLM, prompting | | | | |
@@ -52,6 +52,8 @@ pip install -e ".[dev]"
 pytest
 python -m intents.baseline --lang en
 python -m intents.baseline --lang ru
+python -m intents.baseline --model most_frequent --lang en
+python -m intents.baseline --model most_frequent --lang ru
 ```
 
 The first run downloads the dataset (a few MB) into the Hugging Face cache.
