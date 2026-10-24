@@ -38,12 +38,32 @@ Accuracy; empty cells are not measured yet.
 | Method | en, validation | ru, validation | en, test | ru, test |
 |---|---|---|---|---|
 | Always the most frequent intent | 0.0644 | 0.0644 | | |
-| TF-IDF + logistic regression | 0.8057 | 0.7614 | | |
+| TF-IDF + logistic regression (tuned, see below) | 0.8515 | 0.8303 | | |
 | Fine-tuned transformer | | | | |
 | LLM, prompting | | | | |
 | LLM, LoRA | | | | |
 
-On the same commands, Russian is 4.4 points lower than English with TF-IDF; the next experiments check whether character n-grams or lemmatization close the gap.
+On the same commands, Russian was 4.4 points behind English with the default TF-IDF; after tuning it is 2.1 points behind. Character pieces closed half of the gap. The test cells stay empty until `C` is chosen with cross-validation.
+
+## Stage 1 experiments (validation)
+
+One change at a time, each run logged in MLflow (experiment `massive-stage1`).
+
+| Features | `C` | en | ru |
+|---|---|---|---|
+| Words | 1 | 0.8057 | 0.7614 |
+| Words + bigrams | 1 | 0.7973 | 0.7413 |
+| Words | 30 | 0.8485 | 0.8165 |
+| Words + bigrams | 30 | 0.8451 | |
+| Words, lemmatized (pymorphy3) | 30 | | 0.8210 |
+| Character pieces `char_wb (2, 5)` | 30 | **0.8515** | **0.8303** |
+| Character pieces, lemmatized | 30 | | 0.8254 |
+
+- The penalty was the biggest lever: `C = 1` underfits; accuracy peaks near `C = 30` (tried 0.3, 1, 3, 10, 30, 100).
+- Bigrams don't help: many rare columns, and at the best `C` they tie with single words.
+- Character pieces help Russian (+1.4 at `C = 30`): the forms of one word share most of their pieces. In English it's a tie.
+- Lemmatization helps words a little but hurts character pieces: it erases endings that separate intents ("поставь", a command, against "поставлен ли", a question).
+- Differences under about 0.5 points (10 of 2,033 commands) are treated as noise.
 
 ## How to run
 
@@ -55,6 +75,15 @@ python -m intents.baseline --lang ru
 python -m intents.baseline --model most_frequent --lang en
 python -m intents.baseline --model most_frequent --lang ru
 ```
+
+The best settings, and the options for experiments:
+
+```bash
+python -m intents.baseline --lang ru --analyzer char_wb --ngram-min 2 --ngram-max 5 --C 30
+python -m intents.baseline --lang ru --C 30 --lemmatize
+```
+
+`--ngram-min`, `--ngram-max` and `--analyzer` (`word` or `char_wb`) set the TF-IDF features, `--C` the inverse strength of the L2 penalty, `--lemmatize` turns on pymorphy3 lemmas (for Russian). Every run is logged to MLflow; to see them, run `mlflow ui` and open "Model training" → "Runs".
 
 The first run downloads the dataset (a few MB) into the Hugging Face cache.
 
