@@ -10,6 +10,7 @@ Run from the project root:
 import argparse
 
 import mlflow
+import pymorphy3
 from sklearn import dummy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -18,6 +19,12 @@ from sklearn.pipeline import Pipeline, make_pipeline
 
 from intents.data import LANGUAGES, load_split
 
+MORPH = pymorphy3.MorphAnalyzer()
+
+
+def lemmatize_text(text: str) -> str:
+    return " ".join(MORPH.parse(word)[0].normal_form for word in text.lower().split())
+
 
 def build_most_frequent() -> dummy.DummyClassifier:
     """The null model: always the most frequent intent of the training set."""
@@ -25,11 +32,19 @@ def build_most_frequent() -> dummy.DummyClassifier:
 
 
 def build_pipeline(
-    ngram_max: int = 1, ngram_min: int = 1, analyzer: str = "word", C: float = 1.0
+    ngram_max: int = 1,
+    ngram_min: int = 1,
+    analyzer: str = "word",
+    C: float = 1.0,
+    lemmatize: bool = False,
 ) -> Pipeline:
     """An untrained pipeline: TF-IDF features, then logistic regression."""
     return make_pipeline(
-        TfidfVectorizer(ngram_range=(ngram_min, ngram_max), analyzer=analyzer),
+        TfidfVectorizer(
+            ngram_range=(ngram_min, ngram_max),
+            analyzer=analyzer,
+            preprocessor=lemmatize_text if lemmatize else None,
+        ),
         LogisticRegression(C=C, max_iter=1000),
     )
 
@@ -48,6 +63,7 @@ def main() -> None:
     )
     parser.add_argument("--ngram-max", type=int, default=1)
     parser.add_argument("--ngram-min", type=int, default=1)
+    parser.add_argument("--lemmatize", action="store_true")
     parser.add_argument(
         "--analyzer", choices=("word", "char_wb"), type=str, default="word"
     )
@@ -75,10 +91,12 @@ def main() -> None:
                 ngram_min=args.ngram_min,
                 analyzer=args.analyzer,
                 C=args.C,
+                lemmatize=args.lemmatize,
             )
 
         mlflow.log_params(
             {
+                "lemmatize": args.lemmatize,
                 "lang": args.lang,
                 "C": args.C,
                 "analyzer": args.analyzer,
