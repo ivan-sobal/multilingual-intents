@@ -25,11 +25,11 @@ def build_most_frequent() -> dummy.DummyClassifier:
 
 
 def build_pipeline(
-    ngram_max: int = 1, analyzer: str = "word", C: float = 1.0
+    ngram_max: int = 1, ngram_min: int = 1, analyzer: str = "word", C: float = 1.0
 ) -> Pipeline:
     """An untrained pipeline: TF-IDF features, then logistic regression."""
     return make_pipeline(
-        TfidfVectorizer(ngram_range=(1, ngram_max), analyzer=analyzer),
+        TfidfVectorizer(ngram_range=(ngram_min, ngram_max), analyzer=analyzer),
         LogisticRegression(C=C, max_iter=1000),
     )
 
@@ -47,6 +47,7 @@ def main() -> None:
         description="Train a baseline on MASSIVE: TF-IDF + logistic regression, or always the most frequent intent."
     )
     parser.add_argument("--ngram-max", type=int, default=1)
+    parser.add_argument("--ngram-min", type=int, default=1)
     parser.add_argument(
         "--analyzer", choices=("word", "char_wb"), type=str, default="word"
     )
@@ -70,7 +71,10 @@ def main() -> None:
             model = build_most_frequent()
         else:
             model = build_pipeline(
-                ngram_max=args.ngram_max, analyzer=args.analyzer, C=args.C
+                ngram_max=args.ngram_max,
+                ngram_min=args.ngram_min,
+                analyzer=args.analyzer,
+                C=args.C,
             )
 
         mlflow.log_params(
@@ -79,6 +83,7 @@ def main() -> None:
                 "C": args.C,
                 "analyzer": args.analyzer,
                 "split": args.split,
+                "ngram_min": args.ngram_min,
                 "ngram_max": args.ngram_max,
                 "model": args.model,
             }
