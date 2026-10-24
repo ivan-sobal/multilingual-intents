@@ -9,6 +9,7 @@ Run from the project root:
 
 import argparse
 
+import mlflow
 from sklearn import dummy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -23,9 +24,14 @@ def build_most_frequent() -> dummy.DummyClassifier:
     return dummy.DummyClassifier(strategy="most_frequent")
 
 
-def build_pipeline() -> Pipeline:
+def build_pipeline(
+    ngram_max: int = 1, analyzer: str = "word", C: float = 1.0
+) -> Pipeline:
     """An untrained pipeline: TF-IDF features, then logistic regression."""
-    return make_pipeline(TfidfVectorizer(), LogisticRegression(max_iter=1000))
+    return make_pipeline(
+        TfidfVectorizer(ngram_range=(1, ngram_max), analyzer=analyzer),
+        LogisticRegression(C=C, max_iter=1000),
+    )
 
 
 def evaluate(
@@ -40,7 +46,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Train a baseline on MASSIVE: TF-IDF + logistic regression, or always the most frequent intent."
     )
+    parser.add_argument("--ngram-max", type=int, default=1)
+    parser.add_argument(
+        "--analyzer", choices=("word", "char_wb"), type=str, default="word"
+    )
     parser.add_argument("--lang", choices=LANGUAGES, default="en")
+    parser.add_argument("--C", type=float, default=1.0)
     parser.add_argument("--model", choices=("tfidf", "most_frequent"), default="tfidf")
     parser.add_argument(
         "--split",
@@ -53,12 +64,28 @@ def main() -> None:
     train_texts, train_labels = load_split(args.lang, "train")
     eval_texts, eval_labels = load_split(args.lang, args.split)
 
-    if args.model == "most_frequent":
-        model = build_most_frequent()
-    else:
-        model = build_pipeline()
-    model.fit(train_texts, train_labels)
-    accuracy = evaluate(model, eval_texts, eval_labels)
+    mlflow.set_experiment("massive-stage1")
+    with mlflow.start_run():
+        if args.model == "most_frequent":
+            model = build_most_frequent()
+        else:
+            model = build_pipeline(
+                ngram_max=args.ngram_max, analyzer=args.analyzer, C=args.C
+            )
+
+        mlflow.log_params(
+            {
+                "lang": args.lang,
+                "C": args.C,
+                "analyzer": args.analyzer,
+                "split": args.split,
+                "ngram_max": args.ngram_max,
+                "model": args.model,
+            }
+        )
+        model.fit(train_texts, train_labels)
+        accuracy = evaluate(model, eval_texts, eval_labels)
+        mlflow.log_metric("accuracy", accuracy)
     print(
         f"{args.lang} {args.split} {args.model}: accuracy {accuracy:.4f} on {len(eval_texts)} examples"
     )
