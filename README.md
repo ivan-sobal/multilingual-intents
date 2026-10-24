@@ -37,13 +37,15 @@ Accuracy; empty cells are not measured yet.
 
 | Method | en, validation | ru, validation | en, test | ru, test |
 |---|---|---|---|---|
-| Always the most frequent intent | 0.0644 | 0.0644 | | |
-| TF-IDF + logistic regression (tuned, see below) | 0.8515 | 0.8303 | | |
+| Always the most frequent intent | 0.0644 | 0.0644 | 0.0703 | 0.0703 |
+| TF-IDF + logistic regression (tuned, see below) | 0.8515 | 0.8303 | 0.8376 | 0.8282 |
 | Fine-tuned transformer | | | | |
 | LLM, prompting | | | | |
 | LLM, LoRA | | | | |
 
-On the same commands, Russian was 4.4 points behind English with the default TF-IDF; after tuning it is 2.1 points behind. Character pieces closed half of the gap. The test cells stay empty until `C` is chosen with cross-validation.
+On the same commands, Russian was 4.4 points behind English with the default TF-IDF on validation; after tuning it is 2.1 points behind on validation and 0.9 points behind on test. Character pieces closed most of the gap.
+
+The tuned model: character pieces `char_wb (2, 5)`, `C` chosen by 5-fold stratified cross-validation on train — `C = 10` for English, `C = 30` for Russian. Test was used once, after every choice was made.
 
 ## Stage 1 experiments (validation)
 
@@ -63,7 +65,21 @@ One change at a time, each run logged in MLflow (experiment `massive-stage1`).
 - Bigrams don't help: many rare columns, and at the best `C` they tie with single words.
 - Character pieces help Russian (+1.4 at `C = 30`): the forms of one word share most of their pieces. In English it's a tie.
 - Lemmatization helps words a little but hurts character pieces: it erases endings that separate intents ("поставь", a command, against "поставлен ли", a question).
-- Differences under about 0.5 points (10 of 2,033 commands) are treated as noise.
+- Differences under about 0.5 points (10 of 2,033 commands) are treated as noise. Cross-validation measured it: the same model scores 0.828–0.844 on the five folds of the Russian train (std 0.56 points).
+
+### Choosing `C` by cross-validation
+
+5-fold stratified cross-validation on train, `char_wb (2, 5)`, mean accuracy ± std (`intents/cross_validation.ipynb`):
+
+| `C` | en | ru |
+|---|---|---|
+| 1 | 0.8022 ± 0.0037 | 0.7951 ± 0.0046 |
+| 3 | 0.8339 ± 0.0047 | 0.8229 ± 0.0030 |
+| 10 | **0.8417** ± 0.0065 | 0.8326 ± 0.0056 |
+| 30 | 0.8405 ± 0.0066 | **0.8329** ± 0.0056 |
+| 100 | 0.8368 ± 0.0073 | 0.8322 ± 0.0070 |
+
+`C` of 1 and 3 is clearly worse; from 10 to 100 the differences are far below one standard deviation, so any value there is as good.
 
 ## How to run
 
@@ -93,8 +109,10 @@ Before a commit: `ruff check .` and `ruff format .`.
 
 ```
 intents/
-    data.py        loading one language and one split
-    baseline.py    stage 1: TF-IDF + logistic regression
+    data.py                   loading one language and one split
+    baseline.py               stage 1: TF-IDF + logistic regression
+    error_analysis.ipynb      per-intent F1 and the most confused pairs
+    cross_validation.ipynb    5-fold cross-validation and GridSearchCV for C
 tests/
     test_baseline.py
 ```
