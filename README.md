@@ -8,7 +8,7 @@ One task — recognising what a user wants from a short command to a voice assis
 
 The question behind it: how much does each method gain over the simple one, and how much harder is Russian than English for each of them?
 
-**Status:** work in progress, stage 1.
+**Status:** work in progress: stage 1 done, stage 2 next.
 
 ## Data
 
@@ -30,6 +30,23 @@ This project uses the Hugging Face copy [`mteb/amazon_massive_intent`](https://h
 - The metric is accuracy, the standard one for MASSIVE.
 - Every choice (features, hyperparameters, prompts) is made on validation. Test is used once per method, for the final table.
 - The same splits for every method.
+
+## Success criteria
+
+- **A fair comparison:** every method has a row in the Results table, on the same splits, with test used once per method.
+- **Differences that are real:** a method counts as better only if a paired permutation test on the same test commands says so, not by eye.
+- **The question answered:** a short conclusion says how much each method gains over TF-IDF, and how far Russian is behind English for each method.
+
+## Stop rule
+
+Stop tuning a method when two changes in a row move validation accuracy by less than 0.5 points (the noise measured in stage 1), or when the stage's date arrives. Then use test once and move on.
+
+## Assumptions and limits
+
+- The Russian commands are translations, so the results may not carry over to the way native speakers talk to an assistant.
+- The commands are short and come from one domain, voice assistants, so the results don't carry over to longer texts.
+- Accuracy is one number across 60 intents, so it can hide weak rare intents; `intents/error_analysis.ipynb` covers the baseline only.
+- Differences under about 0.5 points are treated as noise.
 
 ## Results
 
@@ -69,7 +86,7 @@ One change at a time, each run logged in MLflow (experiment `massive-stage1`).
 
 ### Choosing `C` by cross-validation
 
-5-fold stratified cross-validation on train, `char_wb (2, 5)`, mean accuracy ± std (`intents/cross_validation.ipynb`):
+5-fold stratified cross-validation on train, `char_wb (2, 5)`, mean accuracy ± std (`python -m intents.tune`, first done in `intents/cross_validation.ipynb`):
 
 | `C` | en | ru |
 |---|---|---|
@@ -101,6 +118,13 @@ python -m intents.baseline --lang ru --C 30 --lemmatize
 
 `--ngram-min`, `--ngram-max` and `--analyzer` (`word` or `char_wb`) set the TF-IDF features, `--C` the inverse strength of the L2 penalty, `--lemmatize` turns on pymorphy3 lemmas (for Russian). Every run is logged to MLflow; to see them, run `mlflow ui` and open "Model training" → "Runs".
 
+Choosing `C` by 5-fold cross-validation; each `C` is a child run in MLflow:
+
+```bash
+python -m intents.tune --lang en
+python -m intents.tune --lang ru
+```
+
 The first run downloads the dataset (a few MB) into the Hugging Face cache.
 
 Before a commit: `ruff check .` and `ruff format .`.
@@ -111,6 +135,7 @@ Before a commit: `ruff check .` and `ruff format .`.
 intents/
     data.py                   loading one language and one split
     baseline.py               stage 1: TF-IDF + logistic regression
+    tune.py                   choosing C: 5-fold GridSearchCV, logged to MLflow
     error_analysis.ipynb      per-intent F1 and the most confused pairs
     cross_validation.ipynb    5-fold cross-validation and GridSearchCV for C
 tests/
@@ -119,7 +144,7 @@ tests/
 
 ## Roadmap
 
-- [ ] Stage 1: TF-IDF + logistic regression, English and Russian; the most-frequent-intent baseline
+- [x] Stage 1: TF-IDF + logistic regression, English and Russian; the most-frequent-intent baseline
 - [ ] Stage 2: a fine-tuned transformer
 - [ ] Stage 3: an LLM — prompting, then LoRA; the full comparison and what it means
 
